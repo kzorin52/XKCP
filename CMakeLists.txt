@@ -402,6 +402,8 @@ elseif(XKCP_TARGET STREQUAL AVX512)
         target_compile_options(XKCP PUBLIC "-mavx512")
 endif()
 
+# Reset XKCP_INCLUDE_DIRS
+set(XKCP_INCLUDE_DIRS "")
 foreach(file ${ARCH_FILES})
         string(REGEX REPLACE "^(.*)/.+$" "\\1" dir ${file})
         list(APPEND XKCP_INCLUDE_DIRS ${dir})
@@ -413,6 +415,8 @@ target_include_directories(XKCP PUBLIC ${XKCP_INCLUDE_DIRS})
 set(HEADER_FILES ${ARCH_FILES})
 list(FILTER HEADER_FILES INCLUDE REGEX ".*\.h$")
 
+# Clear out old include
+file(REMOVE_RECURSE ${CMAKE_BINARY_DIR}/include/XKCP)
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include/XKCP)
 file(COPY ${HEADER_FILES} DESTINATION ${CMAKE_BINARY_DIR}/include/XKCP)
 

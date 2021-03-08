@@ -3,6 +3,9 @@ project(XKCP C ASM)
 
 set(CMAKE_C_STANDARD 11)
 
+set(XKCP_TARGET "AVX" CACHE STRING "Set TARGET for which kind of feature set to target the build.")
+set_property(CACHE XKCP_TARGET PROPERTY STRINGS generic64 SSSE3 AVX AVX2)
+
 set(COMMON_FILES lib/common/align.h lib/common/brg_endian.h)
 
 # LowLevel.build
@@ -187,13 +190,16 @@ set(K1600X4_AVX512_U12_FILES ${K1600X4_AVX512_FILES}
 set(K1600X4_AVX512_UA_FILES ${K1600X4_AVX512_FILES}
         lib/low/KeccakP-1600-times4/AVX512/AVX512ufull/SIMD512-4-config.h)
 # Keccak-p[1600]×8
-set(K1600X8_ON1_FILES lib/low/KeccakP-1600-times8/fallback-on1/KeccakP-1600-times8-on1.c
+set(K1600X8_ON1_FILES
+        lib/low/KeccakP-1600-times8/fallback-on1/KeccakP-1600-times8-on1.c
         lib/low/KeccakP-1600-times8/fallback-on1/KeccakP-1600-times8-SnP.h
         lib/low/common/PlSnP-Fallback.inc)
-set(K1600X8_ON2_FILES lib/low/KeccakP-1600-times8/fallback-on2/KeccakP-1600-times8-on2.c
+set(K1600X8_ON2_FILES
+        lib/low/KeccakP-1600-times8/fallback-on2/KeccakP-1600-times8-on2.c
         lib/low/KeccakP-1600-times8/fallback-on2/KeccakP-1600-times8-SnP.h
         lib/low/common/PlSnP-Fallback.inc)
-set(K1600X8_ON4_FILES lib/low/KeccakP-1600-times8/fallback-on4/KeccakP-1600-times8-on4.c
+set(K1600X8_ON4_FILES
+        lib/low/KeccakP-1600-times8/fallback-on4/KeccakP-1600-times8-on4.c
         lib/low/KeccakP-1600-times8/fallback-on4/KeccakP-1600-times8-SnP.h
         lib/low/common/PlSnP-Fallback.inc)
 set(K1600X8_AVX512_FILES ${OPTIMIZED_FILES}
@@ -330,8 +336,7 @@ set(AVX2_FILES ${K200_REF_FILES} ${K400_REF_FILES} ${K800_PLAIN_UA_FILES} ${K160
 set(AVX2_NO_ASM_FILES ${K200_REF_FILES} ${K400_REF_FILES} ${K800_PLAIN_UA_FILES} ${K1600_PLAIN_64_BITS_UA_FILES} ${K1600X2_SSSE3_U2_FILES} ${K1600X4_AVX2_U12_FILES} ${K1600X8_ON4_FILES} ${KET_SNP_FILES} ${XOODOO_SSE2_FILES} ${XOODOOX4_SSSE3_FILES} ${XOODOOX8_AVX2_FILES} ${XOODOOX16_ON1_FILES})
 set(AVX512_FILES ${K200_REF_FILES} ${K400_REF_FILES} ${K800_PLAIN_UA_FILES} ${K1600_AVX512_FILES} ${K1600X2_AVX512_U12_FILES} ${K1600X4_AVX512_U12_FILES} ${K1600X8_AVX512_U12_FILES} ${KET_SNP_FILES} ${XOODOO_AVX512_FILES} ${XOODOOX4_AVX512_FILES} ${XOODOOX8_AVX512_FILES} ${XOODOOX16_AVX512_FILES})
 
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include)
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/include/config.h
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/config.h
         "#define XKCP_has_Sponge_Keccak\n"
         "#define XKCP_has_FIPS202\n"
         "#define XKCP_has_SP800_185\n"
@@ -356,90 +361,40 @@ file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/include/config.h
         "#define XKCP_has_Xoodootimes16\n"
 )
 
-add_library(XKCP STATIC ${GENERIC64_FILES} ${CMAKE_CURRENT_BINARY_DIR}/include/config.h ${ALL_FILES})
-target_include_directories(XKCP PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
-        lib/high/common lib/high/Keccak lib/high/Xoodyak
-        lib/common lib/low/common
+if(XKCP_TARGET STREQUAL generic64)
+        set(ARCH_FILES ${GENERIC64_FILES} ${CMAKE_CURRENT_BINARY_DIR}/config.h ${ALL_FILES})
+        list(REMOVE_DUPLICATES ARCH_FILES)
+        add_library(XKCP STATIC ${ARCH_FILES})
+elseif(XKCP_TARGET STREQUAL SSSE3)
+        set(ARCH_FILES ${SSSE3_FILES} ${CMAKE_CURRENT_BINARY_DIR}/config.h ${ALL_FILES})
+        list(REMOVE_DUPLICATES ARCH_FILES)
+        add_library(XKCP STATIC ${ARCH_FILES})
+        target_compile_options(XKCP PUBLIC "-msse4.1")
+elseif(XKCP_TARGET STREQUAL AVX)
+        set(ARCH_FILES ${AVX_FILES} ${CMAKE_CURRENT_BINARY_DIR}/config.h ${ALL_FILES})
+        list(REMOVE_DUPLICATES ARCH_FILES)
+        add_library(XKCP STATIC ${ARCH_FILES})
+        target_compile_options(XKCP PUBLIC "-mavx")
+elseif(XKCP_TARGET STREQUAL AVX2)
+        set(ARCH_FILES ${AVX2_FILES} ${CMAKE_CURRENT_BINARY_DIR}/config.h ${ALL_FILES})
+        list(REMOVE_DUPLICATES ARCH_FILES)
+        add_library(XKCP STATIC ${ARCH_FILES})
+        target_compile_options(XKCP PUBLIC "-mavx2")
+endif()
 
-        lib/low/KeccakP-200/ref
-        lib/low/KeccakP-400/ref
-        lib/low/KeccakP-800/plain lib/low/KeccakP-800/plain/ua 
-        lib/low/KeccakP-1600/common lib/low/KeccakP-1600/plain-64bits
-        lib/low/KeccakP-1600/plain-64bits/ua
-        lib/low/KeccakP-1600-times2/fallback-on1
-        lib/low/KeccakP-1600-times4/fallback-on1
-        lib/low/KeccakP-1600-times8/fallback-on1
-        lib/low/Ketje/SnP-compliant
-        lib/low/Xoodoo lib/low/Xoodoo/plain
-        lib/low/Xoodoo-times4/fallback-on1
-        lib/low/Xoodoo-times8/fallback-on1
-        lib/low/Xoodoo-times16/fallback-on1
-)
-set(HEADER_FILES ${GENERIC64_FILES} ${CMAKE_CURRENT_BINARY_DIR}/include/config.h ${ALL_FILES})
+foreach(file ${ARCH_FILES})
+        string(REGEX REPLACE "^(.*)/.+$" "\\1" dir ${file})
+        list(APPEND XKCP_INCLUDE_DIRS ${dir})
+endforeach()
+list(REMOVE_DUPLICATES XKCP_INCLUDE_DIRS)
+
+target_include_directories(XKCP PUBLIC ${XKCP_INCLUDE_DIRS})
+
+set(HEADER_FILES ${ARCH_FILES})
 list(FILTER HEADER_FILES INCLUDE REGEX ".*\.h$")
-list(REMOVE_DUPLICATES HEADER_FILES)
-file(COPY ${HEADER_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include)
-install(TARGETS XKCP ARCHIVE DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include/XKCP)
+file(COPY ${HEADER_FILES} DESTINATION ${CMAKE_BINARY_DIR}/include/XKCP)
+
+install(TARGETS XKCP ARCHIVE DESTINATION XKCP)
 # install(FILES ${HEADER_FILES} TYPE INCLUDE)
-
-# add_library(XKCP_ssse3 STATIC ${SSSE3_FILES} ${CMAKE_CURRENT_BINARY_DIR}/include/config.h ${ALL_FILES})
-# target_compile_options(XKCP_ssse3 PUBLIC "-msse4.1")
-# target_include_directories(XKCP_ssse3 PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
-#         lib/high/common lib/high/Keccak lib/high/Xoodyak
-#         lib/common lib/low/common
-
-#         lib/low/KeccakP-200/ref
-#         lib/low/KeccakP-400/ref
-#         lib/low/KeccakP-800/plain lib/low/KeccakP-800/plain/lcua 
-#         lib/low/KeccakP-1600/common lib/low/KeccakP-1600/plain-64bits
-#         lib/low/KeccakP-1600/plain-64bits/lcua
-#         lib/low/KeccakP-1600-times2/SIMD128 lib/low/KeccakP-1600-times2/SIMD128/SSSE3-u2
-#         lib/low/KeccakP-1600-times4/fallback-on2
-#         lib/low/KeccakP-1600-times8/fallback-on2
-#         lib/low/Ketje/SnP-compliant
-#         lib/low/Xoodoo lib/low/Xoodoo/SSE2
-#         lib/low/Xoodoo-times4/SSSE lib/low/Xoodoo-times4/SSSE3
-#         lib/low/Xoodoo-times8/fallback-on1
-#         lib/low/Xoodoo-times16/fallback-on1
-# )
-
-# add_library(XKCP_avx STATIC ${AVX_FILES} ${CMAKE_CURRENT_BINARY_DIR}/include/config.h ${ALL_FILES})
-# target_compile_options(XKCP_avx PUBLIC "-mavx")
-# target_include_directories(XKCP_avx PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
-#         lib/high/common lib/high/Keccak lib/high/Xoodyak
-#         lib/common lib/low/common
-
-#         lib/low/KeccakP-200/ref
-#         lib/low/KeccakP-400/ref
-#         lib/low/KeccakP-800/plain lib/low/KeccakP-800/plain/lcua 
-#         lib/low/KeccakP-1600/common lib/low/KeccakP-1600/plain-64bits
-#         lib/low/KeccakP-1600/plain-64bits/lcua-shld
-#         lib/low/KeccakP-1600-times2/SIMD128 lib/low/KeccakP-1600-times2/SIMD128/SSSE3-ua
-#         lib/low/KeccakP-1600-times4/fallback-on2
-#         lib/low/KeccakP-1600-times8/fallback-on2
-#         lib/low/Ketje/SnP-compliant
-#         lib/low/Xoodoo lib/low/Xoodoo/SSE2
-#         lib/low/Xoodoo-times4/SSSE lib/low/Xoodoo-times4/SSSE3
-#         lib/low/Xoodoo-times8/fallback-on1
-#         lib/low/Xoodoo-times16/fallback-on1 
-# )
-
-# add_library(XKCP_avx2 STATIC ${AVX2_FILES} ${CMAKE_CURRENT_BINARY_DIR}/include/config.h ${ALL_FILES})
-# target_compile_options(XKCP_avx2 PUBLIC "-mavx2")
-# target_include_directories(XKCP_avx2 PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
-#         lib/high/common lib/high/Keccak lib/high/Xoodyak
-#         lib/common lib/low/common
-
-#         lib/low/KeccakP-200/ref
-#         lib/low/KeccakP-400/ref
-#         lib/low/KeccakP-800/plain lib/low/KeccakP-800/plain/ua 
-#         lib/low/KeccakP-1600/common lib/low/KeccakP-1600/AVX2
-#         lib/low/KeccakP-1600-times2/SIMD128 lib/low/KeccakP-1600-times2/SIMD128/SSSE3-u2
-#         lib/low/KeccakP-1600-times4/AVX2 lib/low/KeccakP-1600-times4/AVX2/u12
-#         lib/low/KeccakP-1600-times8/fallback-on4
-#         lib/low/Ketje/SnP-compliant
-#         lib/low/Xoodoo lib/low/Xoodoo/SSE2
-#         lib/low/Xoodoo-times4/SSSE lib/low/Xoodoo-times4/SSSE3
-#         lib/low/Xoodoo-times8/AVX2
-#         lib/low/Xoodoo-times16/fallback-on1 
-# )

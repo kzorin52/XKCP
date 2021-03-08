@@ -4,7 +4,7 @@ project(XKCP C ASM)
 set(CMAKE_C_STANDARD 11)
 
 set(XKCP_TARGET "AVX" CACHE STRING "Set TARGET for which kind of feature set to target the build.")
-set_property(CACHE XKCP_TARGET PROPERTY STRINGS generic64 SSSE3 AVX AVX2)
+set_property(CACHE XKCP_TARGET PROPERTY STRINGS generic64 SSSE3 AVX AVX2 AVX512)
 
 set(COMMON_FILES lib/common/align.h lib/common/brg_endian.h)
 
@@ -380,6 +380,11 @@ elseif(XKCP_TARGET STREQUAL AVX2)
         list(REMOVE_DUPLICATES ARCH_FILES)
         add_library(XKCP STATIC ${ARCH_FILES})
         target_compile_options(XKCP PUBLIC "-mavx2")
+elseif(XKCP_TARGET STREQUAL AVX512)
+        set(ARCH_FILES ${AVX512_FILES} ${CMAKE_CURRENT_BINARY_DIR}/config.h ${ALL_FILES})
+        list(REMOVE_DUPLICATES ARCH_FILES)
+        add_library(XKCP STATIC ${ARCH_FILES})
+        target_compile_options(XKCP PUBLIC "-mavx512")
 endif()
 
 foreach(file ${ARCH_FILES})

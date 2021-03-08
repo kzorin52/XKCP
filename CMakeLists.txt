@@ -314,10 +314,25 @@ set(XOOFFF_FILES ${COMMON_FILES}
 set(XOODYAK_FILES ${COMMON_FILES}
         lib/high/Xoodyak/Xoodyak.c lib/high/Xoodyak/Xoodyak.h
         lib/high/Xoodyak/Cyclist.inc lib/high/Xoodyak/Cyclist.h)
-set(ALL_FILES ${ALL_FILES} ${COMMON_FILES} ${KETJE_FILES} ${KEYAK_FILES} ${KECCAK_SPONGE_FILES} ${KECCAK_DUPLEX_FILES} ${KECCAK_PRG_FILES} ${FIPS202_FILES} ${SP800_185_FILES} ${KANG12_FILES} ${KRAVATTE_FILES} ${XOOFFF_FILES} ${XOODYAK_FILES})
+set(ALL_FILES ${ALL_FILES} ${COMMON_FILES} ${KETJE_FILES} ${KEYAK_FILES} ${KECCAK_SPONGE_FILES}
+        ${KECCAK_DUPLEX_FILES} ${KECCAK_PRG_FILES} ${FIPS202_FILES} ${SP800_185_FILES} ${KANG12_FILES}
+        ${KRAVATTE_FILES} ${XOOFFF_FILES} ${XOODYAK_FILES})
 
 set(UT_FILES ${COMMON_FILES}
-        tests/UnitTests/main.c tests/UnitTests/UT.c tests/UnitTests/UT.h tests/UnitTests/testPermutations.c tests/UnitTests/testPermutations.h tests/UnitTests/testSnP.inc tests/UnitTests/testPlSnP.inc tests/UnitTests/testSponge.c tests/UnitTests/testSponge.inc tests/UnitTests/testSponge.h tests/UnitTests/testDuplex.c tests/UnitTests/testDuplex.inc tests/UnitTests/testDuplex.h tests/UnitTests/testMotorist.c tests/UnitTests/testMotorist.inc tests/UnitTests/testMotorist.h tests/UnitTests/testKeyakv2.c tests/UnitTests/testKeyakv2.inc tests/UnitTests/testKeyakv2.h tests/UnitTests/testKetjev2.c tests/UnitTests/testKetjev2.h tests/UnitTests/testKetjev2.inc tests/UnitTests/genKAT.c tests/UnitTests/genKAT.h tests/UnitTests/testPRG.c tests/UnitTests/testPRG.inc tests/UnitTests/testPRG.h tests/UnitTests/testKangarooTwelve.c tests/UnitTests/testKangarooTwelve.h tests/UnitTests/testKravatte.c tests/UnitTests/testKravatte.h tests/UnitTests/testKravatteModes.c tests/UnitTests/testKravatteModes.h tests/UnitTests/testSP800-185.c tests/UnitTests/testSP800-185.h tests/UnitTests/testXoofff.c tests/UnitTests/testXoofff.h tests/UnitTests/testXoofffModes.c tests/UnitTests/testXoofffModes.h tests/UnitTests/testXoodyak.c tests/UnitTests/testXoodyak.h
+        tests/UnitTests/main.c tests/UnitTests/UT.c tests/UnitTests/UT.h tests/UnitTests/testPermutations.c
+        tests/UnitTests/testPermutations.h tests/UnitTests/testSnP.inc tests/UnitTests/testPlSnP.inc
+        tests/UnitTests/testSponge.c tests/UnitTests/testSponge.inc tests/UnitTests/testSponge.h
+        tests/UnitTests/testDuplex.c tests/UnitTests/testDuplex.inc tests/UnitTests/testDuplex.h
+        tests/UnitTests/testMotorist.c tests/UnitTests/testMotorist.inc tests/UnitTests/testMotorist.h
+        tests/UnitTests/testKeyakv2.c tests/UnitTests/testKeyakv2.inc tests/UnitTests/testKeyakv2.h
+        tests/UnitTests/testKetjev2.c tests/UnitTests/testKetjev2.h tests/UnitTests/testKetjev2.inc
+        tests/UnitTests/genKAT.c tests/UnitTests/genKAT.h tests/UnitTests/testPRG.c
+        tests/UnitTests/testPRG.inc tests/UnitTests/testPRG.h tests/UnitTests/testKangarooTwelve.c
+        tests/UnitTests/testKangarooTwelve.h tests/UnitTests/testKravatte.c tests/UnitTests/testKravatte.h
+        tests/UnitTests/testKravatteModes.c tests/UnitTests/testKravatteModes.h
+        tests/UnitTests/testSP800-185.c tests/UnitTests/testSP800-185.h tests/UnitTests/testXoofff.c
+        tests/UnitTests/testXoofff.h tests/UnitTests/testXoofffModes.c tests/UnitTests/testXoofffModes.h
+        tests/UnitTests/testXoodyak.c tests/UnitTests/testXoodyak.h
 )
 
 # Makefile.build

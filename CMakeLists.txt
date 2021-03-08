@@ -399,7 +399,7 @@ elseif(XKCP_TARGET STREQUAL AVX512)
         set(ARCH_FILES ${AVX512_FILES} ${CMAKE_CURRENT_BINARY_DIR}/config.h ${ALL_FILES})
         list(REMOVE_DUPLICATES ARCH_FILES)
         add_library(XKCP STATIC ${ARCH_FILES})
-        target_compile_options(XKCP PUBLIC "-mavx512")
+        target_compile_options(XKCP PUBLIC "-mavx512f" "-mavx512vl" "-mavx512bw")
 endif()
 
 # Reset XKCP_INCLUDE_DIRS

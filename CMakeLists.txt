@@ -4,7 +4,7 @@ project(XKCP C ASM)
 set(CMAKE_C_STANDARD 11)
 
 set(XKCP_TARGET "generic64" CACHE STRING "Set TARGET for which kind of feature set to target the build.")
-set_property(CACHE XKCP_TARGET PROPERTY STRINGS generic64 SSSE3 AVX AVX2 AVX512)
+set_property(CACHE XKCP_TARGET PROPERTY STRINGS reference reference32bits compact generic32 generic32lc generic64 generic64lc SSSE3 AVX AVX2 AVX512)
 
 set(COMMON_FILES lib/common/align.h lib/common/brg_endian.h)
 

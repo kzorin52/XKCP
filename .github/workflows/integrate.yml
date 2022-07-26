@@ -11,9 +11,6 @@ on:
     tags:
       - '!v[0-9].*'
     
-defaults:
-  run:
-    shell: bash
 jobs:
   skip_check:
     name: Skip Run Check

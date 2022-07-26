@@ -19,35 +19,51 @@ jobs:
     outputs:
       should_skip: ${{ steps.collate_checks.outputs.should_skip }}
     steps:
-    - name: Check if PR Draft
-      id: pr_draft_check
-      if: github.event.pull_request.draft
-      run: |
-        echo "::set-output name=should_skip::true"
-    - name: Check if PR Merge
-      id: pr_merge_check
-      if: |
-        github.event.pull_request.merged == true &&
-        github.event.pull_request.head.ref == 'main'
-      run: |
-        echo "::set-output name=should_skip::false"
-    - name: Check if duplicate action
-      id: push_check
-      if: |
-        steps.pr_draft_check.outcome == 'skipped' &&
-        steps.pr_merge_check.outcome == 'skipped'
-      uses: fkirc/skip-duplicate-actions@master
-      with:
-        skip_after_successful_duplicate: 'true'
-        paths_ignore: '["**/README.md", ".idea/**", ".editorconfig", ".git*", "docs/**", ".github/**", "**/Doxyfile.in"]'
-    - name: Collate Checks
-      id: collate_checks
-      if: |
-        (steps.pr_draft_check.outcome == 'skipped' || steps.pr_draft_check.outputs.should_skip == 'true') &&
-        (steps.pr_merge_check.outcome == 'skipped' || steps.pr_merge_check.outputs.should_skip != 'false') &&
-        (steps.push_check.outcome == 'skipped' || steps.push_check.outputs.should_skip == 'true')
-      run: |
-        echo "::set-output name=should_skip::true"
+    -   name: Check if PR is a draft
+        id: pr_draft_check
+        if: github.event.pull_request
+        env:
+            draft: ${{ github.event.pull_request.draft }}
+        run: |
+            echo "::set-output name=should_skip::$draft"
+    -   name: Check if CI is forced
+        id: force_ci_check
+        if: |
+            github.event_name == 'push' &&
+            contains(github.event.head_commit.message, '[force ci]')
+        run: |
+            echo "::set-output name=should_skip::false"
+    -   name: Check if changes pushed
+        id: push_new_check
+        if: |
+            github.event_name == 'push' &&
+            (steps.force_ci_check.outcome == 'skipped' || steps.force_ci_check.outputs.should_skip != 'false')
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+            skip_after_successful_duplicate: 'true'
+            paths_ignore: '["**/README.md", ".idea/**", ".editorconfig", ".git*", "docs/**", ".github/**", "**/Doxyfile.in"]'
+    -   name: Collate Checks
+        id: collate_checks
+        if: |
+            (steps.pr_draft_check.outcome == 'skipped' || steps.pr_draft_check.outputs.should_skip != 'false') &&
+            (steps.force_ci_check.outcome == 'skipped' || steps.force_ci_check.outputs.should_skip != 'false') &&
+            (steps.push_new_check.outcome == 'skipped' || steps.push_new_check.outputs.should_skip == 'true')
+        env:
+            pr_draft_check: ${{ steps.pr_draft_check.outcome }}
+            force_ci_check: ${{ steps.force_ci_check.outcome }}
+            push_new_check: ${{ steps.push_new_check.outcome }}
+        run: |
+            echo "Step status was $pr_draft_check : $force_ci_check : $push_new_check"
+            if [ "$pr_draft_check" == "skipped" ] && \
+                [ "$force_ci_check" == "skipped" ] && \
+                [ "$push_new_check" == "skipped" ]
+            then
+                echo "All checks skipped, I don't know what to do."
+                exit 1
+            else
+                echo "::set-output name=should_skip::true"
+            fi
+
 
   build-win:
     runs-on: windows-2022

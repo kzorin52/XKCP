@@ -30,8 +30,8 @@ jobs:
       run: |
         make SSSE3/libXKCP.so
       env:
-        CFLAGS: -O3 -g0 -march=corei7 -mtune=native
-        ASMFLAGS: -march=corei7 -mtune=native
+        CFLAGS: -O3 -g0 -march=core2 -mtune=native
+        ASMFLAGS: -march=core2 -mtune=native
     - name: Build AVX2
       shell: msys2_shell.cmd -defterm -no-start -here -mingw64 {0}
       run: |
@@ -78,7 +78,7 @@ jobs:
 
     - name: Build SSSE3
       run: |
-        CFLAGS="-O3 -g0 -march=corei7 -mtune=native" ASMFLAGS="-march=corei7 -mtune=native" make SSSE3/libXKCP.so
+        CFLAGS="-O3 -g0 -march=core2 -mtune=native" ASMFLAGS="-march=core2 -mtune=native" make SSSE3/libXKCP.so
     - name: Build AVX2
       run: |
         CFLAGS="-O3 -g0 -march=skylake -mtune=native" ASMFLAGS="-march=skylake -mtune=native" make AVX2/libXKCP.so
@@ -114,7 +114,7 @@ jobs:
         CFLAGS="-O3 -g0 -march=ivybridge -mtune=native" ASMFLAGS="-march=ivybridge -mtune=native" make generic64/libXKCP.so
     - name: Build SSSE3
       run: |
-        CFLAGS="-O3 -g0 -march=corei7 -mtune=native" ASMFLAGS="-march=corei7 -mtune=native" make SSSE3/libXKCP.so
+        CFLAGS="-O3 -g0 -march=core2 -mtune=native" ASMFLAGS="-march=core2 -mtune=native" make SSSE3/libXKCP.so
     - name: Build AVX2
       run: |
         CFLAGS="-O3 -g0 -march=skylake -mtune=native" ASMFLAGS="-march=skylake -mtune=native" make AVX2/libXKCP.so

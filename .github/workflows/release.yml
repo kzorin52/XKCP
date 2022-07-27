@@ -14,7 +14,9 @@ jobs:
     -   name: Print Release
         id: force_ci_check
         run: |
-            echo ${{ fromJson(github.event.release) }}
+            echo $release
+        env:
+          release: ${{ fromJson(github.event.release) }}
     -   name: Collate Checks
         id: collate_checks
         run: |

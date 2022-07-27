@@ -21,7 +21,9 @@ jobs:
     steps:
     -   name: Print Release
         run: |
-            echo ${{ fromJson(github.event.release) }}
+            echo $release
+        env:
+          release: ${{ fromJson(github.event.release) }}
     -   name: Check if CI is forced
         id: force_ci_check
         if: |

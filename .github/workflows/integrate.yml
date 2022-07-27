@@ -40,7 +40,7 @@ jobs:
         if: |
             github.event_name == 'push' &&
             (steps.force_ci_check.outcome == 'skipped' || steps.force_ci_check.outputs.should_skip != 'false')
-        uses: fkirc/skip-duplicate-actions@master
+        uses: fkirc/skip-duplicate-actions@v4
         with:
             skip_after_successful_duplicate: 'true'
             paths_ignore: '["**/README.md", ".idea/**", ".editorconfig", ".git*", "docs/**", ".github/**", "**/Doxyfile.in"]'
@@ -180,12 +180,12 @@ jobs:
     - name: Install dependencies
       run: |
         brew install libxslt
-    - name: Build Generic64
-      run: |
-        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=x86-64 -mtune=native" ASMFLAGS="-march=x86-64 -mtune=native" make generic64/libXKCP.dylib
-    - name: Build ARMv8A
+    - name: Build for ARMv8A (M-series)
       run: |
         CFLAGS="-target aarch64-apple-darwin -arch arm64 -O3 -g0 -march=armv8-a" ASMFLAGS="-march=armv8-a" make ARMv8A/libXKCP.dylib
+    - name: Build Generic x86_64
+      run: |
+        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=x86-64 -mtune=native" ASMFLAGS="-march=x86-64 -mtune=native" make generic64/libXKCP.dylib
     - name: Build SSSE3
       run: |
         CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native" ASMFLAGS="-march=core2 -mtune=native" make SSSE3/libXKCP.dylib

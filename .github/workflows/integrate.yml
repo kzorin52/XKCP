@@ -83,60 +83,50 @@ jobs:
 
   build-win:
     runs-on: windows-latest
-    name: Windows
+    name: Build for Windows
     needs: skip_check
     if: needs.skip_check.outputs.should_skip != 'true'
-    defaults:
-      run:
-        shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
     steps:
     - uses: actions/checkout@v3
-    - name: Setup MS Build
+    - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v1.1
-    - name: Add Msys64 to path
-      shell: pwsh
+    - name: Add Path Msys64 Directory
       run: |
         echo "c:\msys64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
     - name: Install msys2 dependencies
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         pacman -S --noconfirm ucrt64/mingw-w64-ucrt-x86_64-libxslt ucrt64/mingw-w64-ucrt-x86_64-make ucrt64/mingw-w64-ucrt-x86_64-gcc
         ln -s /ucrt64/bin/mingw32-make.exe /ucrt64/bin/make.exe
         echo GCC: $(which gcc)
         echo MAKE: $(which make)
         echo MSYSTEM: ${MSYSTEM}
-    - name: Get CPU features
-      id: cpu
-      run: |
-        echo "::set-output name=features::$(echo | gcc -march=native -dM -E - | tr -d '#define' | tr '\r\n' ' ')"
-    - name: Generic64
+    - name: Build Generic64
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make generic64/libXKCP.so
-        make generic64/UnitTests && bin/generic64/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -march=x86-64 -mtune=native
         ASMFLAGS: -march=x86-64 -mtune=native
-    - name: SSE3
+    - name: Build SSSE3
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
-        ./buildForFeature.sh $feature
+        make SSSE3/libXKCP.so
       env:
-        feature: SSSE3
-        thisCPU: ${{ steps.cpu.outputs.features}}
         CFLAGS: -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native
         ASMFLAGS: -march=core2 -mtune=native
-    - name: AVX2
+    - name: Build AVX2
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
-        ./buildForFeature.sh $feature
+        make AVX2/libXKCP.so
       env:
-        feature: AVX2
-        thisCPU: ${{ steps.cpu.outputs.features}}
         CFLAGS: -O3 -g0 -march=skylake -mtune=native
         ASMFLAGS: -march=skylake -mtune=native
-    - name: AVX512
+    - name: Build AVX512
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
-        ./buildForFeature.sh $feature
+        make AVX512/libXKCP.so
       env:
-        feature: AVX512
-        thisCPU: ${{ steps.cpu.outputs.features}}
         CFLAGS: -O3 -g0 -march=skylake-avx512 -mtune=native
         ASMFLAGS: -march=skylake-avx512 -mtune=native
 
@@ -158,7 +148,7 @@ jobs:
           bin/artifacts/libXKCP-win.so.headers
 
   build-linux:
-    name: Linux
+    name: Build for Linux
     runs-on: ubuntu-latest
     needs: skip_check
     if: needs.skip_check.outputs.should_skip != 'true'
@@ -167,41 +157,18 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update && sudo apt-get install xsltproc -y
-    - name: Get CPU features
-      id: cpu
+    - name: Build Generic64
       run: |
-        echo "::set-output name=features::$(echo | gcc -march=native -dM -E - | tr -d '#define' | tr '\n' ' ')"
-    - name: Generic64
+        CFLAGS="-O3 -g0 -march=x86-64 -mtune=native" ASMFLAGS="-march=x86-64 -mtune=native" make generic64/libXKCP.so
+    - name: Build SSSE3
       run: |
-        make generic64/libXKCP.so
-        make generic64/UnitTests && bin/generic64/UnitTests -a
-      env:
-        CFLAGS: -O3 -g0 -march=x86-64 -mtune=native
-        ASMFLAGS: -march=x86-64 -mtune=native
-    - name: SSSE3
+        CFLAGS="-O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native" ASMFLAGS="-march=core2 -mtune=native" make SSSE3/libXKCP.so
+    - name: Build AVX2
       run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: SSSE3
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native
-        ASMFLAGS: -march=core2 -mtune=native
-    - name: AVX2
+        CFLAGS="-O3 -g0 -march=skylake -mtune=native" ASMFLAGS="-march=skylake -mtune=native" make AVX2/libXKCP.so
+    - name: Build AVX512
       run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX2
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=skylake -mtune=native
-        ASMFLAGS: -march=skylake -mtune=native
-    - name: AVX512
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX512
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=skylake-avx512 -mtune=native
-        ASMFLAGS: -march=skylake-avx512 -mtune=native
+        CFLAGS="-O3 -g0 -march=skylake-avx512 -mtune=native" ASMFLAGS="-march=skylake-avx512 -mtune=native" make AVX512/libXKCP.so
     - name: Rename artifacts
       run: |
           mkdir bin/artifacts
@@ -220,7 +187,7 @@ jobs:
           bin/artifacts/include
 
   build-osx:
-    name: MacOS
+    name: Build for MacOS
     runs-on: macos-latest
     needs: skip_check
     if: needs.skip_check.outputs.should_skip != 'true'
@@ -229,53 +196,21 @@ jobs:
     - name: Install dependencies
       run: |
         brew install libxslt
-    - name: Get CPU features
-      id: cpu
+    - name: Build for ARMv8A (M-series)
       run: |
-        /usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features
-        echo "::set-output name=features::$(echo | gcc -march=native -dM -E - | tr -d '#define' | tr '\n' ' ')"
-    - name: ARMv8A (M-series)
+        CFLAGS="-target aarch64-apple-darwin -arch arm64 -O3 -g0 -march=armv8-a" ASMFLAGS="-march=armv8-a" make ARMv8A/libXKCP.dylib
+    - name: Build Generic x86_64
       run: |
-        make ARMv8A/libXKCP.dylib
-        if [[ $(sysctl -n machdep.cpu.brand_string) =~ "Apple" ]]; then
-          make ARMv8A/UnitTests && bin/ARMv8A/UnitTests -a
-        else
-          echo "Intel CPU, can't test."
-        fi
-      env:
-        CFLAGS: -target aarch64-apple-darwin -arch arm64 -O3 -g0 -march=armv8-a
-        ASMFLAGS: -march=armv8-a
-    - name: Generic x86_64
+        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=x86-64 -mtune=native" ASMFLAGS="-march=x86-64 -mtune=native" make generic64/libXKCP.dylib
+    - name: Build SSSE3
       run: |
-        make generic64/libXKCP.dylib
-        make generic64/UnitTests && bin/generic64/UnitTests -a
-      env:
-        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=x86-64 -mtune=native
-        ASMFLAGS: -march=x86-64 -mtune=native
-    - name: SSE3
+        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native" ASMFLAGS="-march=core2 -mtune=native" make SSSE3/libXKCP.dylib
+    - name: Build AVX2
       run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: SSSE3
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=core2 -msse2 -mssse3 -mtune=native
-        ASMFLAGS: -march=core2 -mtune=native
-    - name: AVX2
+        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=skylake -mtune=native" ASMFLAGS="-march=skylake -mtune=native" make AVX2/libXKCP.dylib
+    - name: Build AVX512
       run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX2
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=skylake -mtune=native
-        ASMFLAGS: -march=skylake -mtune=native
-    - name: AVX512
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX512
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=skylake-avx512 -mtune=native
-        ASMFLAGS: -march=skylake-avx512 -mtune=native
+        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=skylake-avx512 -mtune=native" ASMFLAGS="-march=skylake-avx512 -mtune=native" make AVX512/libXKCP.dylib
     - name: Rename and merge Generic64 and ARMv8A artifacts
       run: |
           mkdir bin/artifacts

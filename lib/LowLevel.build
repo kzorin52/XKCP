@@ -147,7 +147,7 @@ The fragments below allow to select the desired implementation of the permutatio
     <fragment name="optimized">
         <h>lib/common/brg_endian.h</h>
         <gcc>-fomit-frame-pointer</gcc>
-        <gcc>-O2</gcc>
+        <gcc>-O3</gcc>
         <gcc>-g0</gcc>
     </fragment>
 

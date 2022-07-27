@@ -82,32 +82,32 @@ jobs:
       run: |
         echo "c:\msys64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
     - name: Install msys2 dependencies
-      shell: msys2_shell.cmd -defterm -no-start -here -mingw64 {0}
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         pacman -S --noconfirm libxslt make gcc
     - name: Build Generic64
-      shell: msys2_shell.cmd -defterm -no-start -here -mingw64 {0}
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make generic64/libXKCP.so
       env:
         CFLAGS: -O3 -g0 -march=x86-64 -mtune=native
         ASMFLAGS: -march=x86-64 -mtune=native
     - name: Build SSSE3
-      shell: msys2_shell.cmd -defterm -no-start -here -mingw64 {0}
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make SSSE3/libXKCP.so
       env:
         CFLAGS: -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native
         ASMFLAGS: -march=core2 -mtune=native
     - name: Build AVX2
-      shell: msys2_shell.cmd -defterm -no-start -here -mingw64 {0}
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make AVX2/libXKCP.so
       env:
         CFLAGS: -O3 -g0 -march=skylake -mtune=native
         ASMFLAGS: -march=skylake -mtune=native
     - name: Build AVX512
-      shell: msys2_shell.cmd -defterm -no-start -here -mingw64 {0}
+      shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make AVX512/libXKCP.so
       env:

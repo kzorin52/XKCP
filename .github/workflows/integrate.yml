@@ -19,13 +19,6 @@ jobs:
     outputs:
       should_skip: ${{ steps.collate_checks.outputs.should_skip }}
     steps:
-    -   name: Check if PR is a draft
-        id: pr_draft_check
-        if: github.event.pull_request
-        env:
-            draft: ${{ github.event.pull_request.draft }}
-        run: |
-            echo "::set-output name=should_skip::$draft"
     -   name: Check if CI is forced
         id: force_ci_check
         if: |
@@ -33,6 +26,15 @@ jobs:
             contains(github.event.head_commit.message, '[force ci]')
         run: |
             echo "::set-output name=should_skip::false"
+    -   name: Check if PR is a draft
+        id: pr_draft_check
+        if: |
+          github.event.pull_request &&
+          (steps.force_ci_check.outcome == 'skipped' || steps.force_ci_check.outputs.should_skip != 'false')
+        env:
+            draft: ${{ github.event.pull_request.draft }}
+        run: |
+            echo "::set-output name=should_skip::$draft"
     -   name: Check if changes pushed
         id: push_new_check
         if: |

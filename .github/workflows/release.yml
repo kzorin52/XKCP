@@ -12,6 +12,7 @@ jobs:
       should_skip: ${{ steps.collate_checks.outputs.should_skip }}
     steps:
     -   name: Print Release
+        id: force_ci_check
         run: |
             echo ${{ fromJson(github.event.release) }}
     -   name: Collate Checks

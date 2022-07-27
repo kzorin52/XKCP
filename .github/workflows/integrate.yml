@@ -1,4 +1,4 @@
-name: Integrate
+name: Integration
 on:
   pull_request:
     branches:
@@ -19,6 +19,9 @@ jobs:
     outputs:
       should_skip: ${{ steps.collate_checks.outputs.should_skip }}
     steps:
+    -   name: Print Release
+        run: |
+            echo ${{ fromJson(github.event.release) }}
     -   name: Check if CI is forced
         id: force_ci_check
         if: |
@@ -65,7 +68,6 @@ jobs:
             else
                 echo "::set-output name=should_skip::true"
             fi
-
 
   build-win:
     runs-on: windows-2022
@@ -161,14 +163,14 @@ jobs:
           mv bin/SSSE3/libXKCP.so bin/artifacts/libXKCP-SSSE3.so
           mv bin/generic64/libXKCP.so bin/artifacts/libXKCP.so
           mv bin/generic64/libXKCP.so.headers bin/artifacts/include
-          ls bin/artifacts
+          ls -lR bin/artifacts
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: XKCP-linux
         path: |
           bin/artifacts/*.so
-          bin/artifacts/include/libXKCP-linux.so.headers
+          bin/artifacts/include
 
   build-osx:
     name: Build for Mac OSX

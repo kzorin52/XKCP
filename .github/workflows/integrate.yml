@@ -129,7 +129,7 @@ jobs:
       shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make AVX512/libXKCP.so
-        make AVX512/UnitTests && bin/AVX512/UnitTests -a
+        # make AVX512/UnitTests && bin/AVX512/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -march=skylake-avx512 -mtune=native
         ASMFLAGS: -march=skylake-avx512 -mtune=native
@@ -185,7 +185,7 @@ jobs:
     - name: AVX512
       run: |
         make AVX512/libXKCP.so
-        make AVX512/UnitTests && bin/AVX512/UnitTests -a
+        # make AVX512/UnitTests && bin/AVX512/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -march=skylake-avx512 -mtune=native
         ASMFLAGS: -march=skylake-avx512 -mtune=native
@@ -244,14 +244,14 @@ jobs:
     - name: AVX2
       run: |
         make AVX2/libXKCP.dylib
-        make AVX2/UnitTests && bin/AVX2/UnitTests -a
+        # make AVX2/UnitTests && bin/AVX2/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=skylake -mtune=native
         ASMFLAGS: -march=skylake -mtune=native
     - name: AVX512
       run: |
         make AVX512/libXKCP.dylib
-        make AVX512/UnitTests && bin/AVX512/UnitTests -a
+        # make AVX512/UnitTests && bin/AVX512/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=skylake-avx512 -mtune=native
         ASMFLAGS: -march=skylake-avx512 -mtune=native

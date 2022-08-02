@@ -101,31 +101,35 @@ jobs:
         echo GCC: $(which gcc)
         echo MAKE: $(which make)
         echo MSYSTEM: ${MSYSTEM}
-    - name: Build Generic64
+    - name: Generic64
       shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make generic64/libXKCP.so
+        make generic64/UnitTests && bin/generic64/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -march=x86-64 -mtune=native
         ASMFLAGS: -march=x86-64 -mtune=native
-    - name: Build SSSE3
+    - name: SSSE3
       shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make SSSE3/libXKCP.so
+        make SSSE3/UnitTests && bin/SSSE3/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native
         ASMFLAGS: -march=core2 -mtune=native
-    - name: Build AVX2
+    - name: AVX2
       shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make AVX2/libXKCP.so
+        make AVX2/UnitTests && bin/AVX2/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -march=skylake -mtune=native
         ASMFLAGS: -march=skylake -mtune=native
-    - name: Build AVX512
+    - name: AVX512
       shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
       run: |
         make AVX512/libXKCP.so
+        make AVX512/UnitTests && bin/AVX512/UnitTests -a
       env:
         CFLAGS: -O3 -g0 -march=skylake-avx512 -mtune=native
         ASMFLAGS: -march=skylake-avx512 -mtune=native
@@ -157,18 +161,34 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update && sudo apt-get install xsltproc -y
-    - name: Build Generic64
+    - name: Generic64
       run: |
-        CFLAGS="-O3 -g0 -march=x86-64 -mtune=native" ASMFLAGS="-march=x86-64 -mtune=native" make generic64/libXKCP.so
-    - name: Build SSSE3
+        make generic64/libXKCP.so
+        make generic64/UnitTests && bin/generic64/UnitTests -a
+      env:
+        CFLAGS: -O3 -g0 -march=x86-64 -mtune=native
+        ASMFLAGS: -march=x86-64 -mtune=native
+    - name: SSSE3
       run: |
-        CFLAGS="-O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native" ASMFLAGS="-march=core2 -mtune=native" make SSSE3/libXKCP.so
-    - name: Build AVX2
+        make SSSE3/libXKCP.so
+        make SSSE3/UnitTests && bin/SSSE3/UnitTests -a
+      env:
+        CFLAGS: -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native
+        ASMFLAGS: -march=core2 -mtune=native
+    - name: AVX2
       run: |
-        CFLAGS="-O3 -g0 -march=skylake -mtune=native" ASMFLAGS="-march=skylake -mtune=native" make AVX2/libXKCP.so
-    - name: Build AVX512
+        make AVX2/libXKCP.so
+        make AVX2/UnitTests && bin/AVX2/UnitTests -a
+      env:
+        CFLAGS: -O3 -g0 -march=skylake -mtune=native
+        ASMFLAGS: -march=skylake -mtune=native
+    - name: AVX512
       run: |
-        CFLAGS="-O3 -g0 -march=skylake-avx512 -mtune=native" ASMFLAGS="-march=skylake-avx512 -mtune=native" make AVX512/libXKCP.so
+        make AVX512/libXKCP.so
+        make AVX512/UnitTests && bin/AVX512/UnitTests -a
+      env:
+        CFLAGS: -O3 -g0 -march=skylake-avx512 -mtune=native
+        ASMFLAGS: -march=skylake-avx512 -mtune=native
     - name: Rename artifacts
       run: |
           mkdir bin/artifacts
@@ -196,21 +216,45 @@ jobs:
     - name: Install dependencies
       run: |
         brew install libxslt
-    - name: Build for ARMv8A (M-series)
+    - name: ARMv8A (M-series)
       run: |
-        CFLAGS="-target aarch64-apple-darwin -arch arm64 -O3 -g0 -march=armv8-a" ASMFLAGS="-march=armv8-a" make ARMv8A/libXKCP.dylib
-    - name: Build Generic x86_64
+        make ARMv8A/libXKCP.dylib
+        if [[ $(sysctl -n machdep.cpu.brand_string) =~ "Apple" ]]; then
+          make ARMv8A/UnitTests && bin/ARMv8A/UnitTests -a
+        else
+          echo "Intel CPU, can't test."
+        fi
+      env:
+        CFLAGS: -target aarch64-apple-darwin -arch arm64 -O3 -g0 -march=armv8-a
+        ASMFLAGS: -march=armv8-a
+    - name: Generic x86_64
       run: |
-        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=x86-64 -mtune=native" ASMFLAGS="-march=x86-64 -mtune=native" make generic64/libXKCP.dylib
-    - name: Build SSSE3
+        make generic64/libXKCP.dylib
+        make generic64/UnitTests && bin/generic64/UnitTests -a
+      env:
+        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=x86-64 -mtune=native
+        ASMFLAGS: -march=x86-64 -mtune=native
+    - name: SSSE3
       run: |
-        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native" ASMFLAGS="-march=core2 -mtune=native" make SSSE3/libXKCP.dylib
-    - name: Build AVX2
+        make SSSE3/libXKCP.dylib
+        make SSSE3/UnitTests && bin/SSSE3/UnitTests -a
+      env:
+        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=core2 -msse2 -mssse3 -mtune=native
+        ASMFLAGS: -march=core2 -mtune=native
+    - name: AVX2
       run: |
-        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=skylake -mtune=native" ASMFLAGS="-march=skylake -mtune=native" make AVX2/libXKCP.dylib
-    - name: Build AVX512
+        make AVX2/libXKCP.dylib
+        make AVX2/UnitTests && bin/AVX2/UnitTests -a
+      env:
+        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=skylake -mtune=native
+        ASMFLAGS: -march=skylake -mtune=native
+    - name: AVX512
       run: |
-        CFLAGS="-target x86_64-apple-darwin -arch x86_64 -O3 -g0 -march=skylake-avx512 -mtune=native" ASMFLAGS="-march=skylake-avx512 -mtune=native" make AVX512/libXKCP.dylib
+        make AVX512/libXKCP.dylib
+        make AVX512/UnitTests && bin/AVX512/UnitTests -a
+      env:
+        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=skylake-avx512 -mtune=native
+        ASMFLAGS: -march=skylake-avx512 -mtune=native
     - name: Rename and merge Generic64 and ARMv8A artifacts
       run: |
           mkdir bin/artifacts

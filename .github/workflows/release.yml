@@ -14,7 +14,7 @@ jobs:
     needs: integration
     runs-on: ubuntu-latest
     steps:
-      - name: Download all XKCP artifacts
+      - name: Download artifacts from Integration
         uses: actions/download-artifact@v3
       - name: Repackage as release artifacts
         run: |

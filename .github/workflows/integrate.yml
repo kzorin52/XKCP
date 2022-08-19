@@ -117,8 +117,12 @@ jobs:
           cmake -B $workingDir -DBUILD_SHARED_LIBS=ON
       - name: Configure (Windows)
         if: runner.os == 'Windows'
-        shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
+        shell: C:\MSys64\msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
         run: |
+          pacman -S --noconfirm mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-ninja
+          echo GCC: $(which gcc)
+          echo CMAKE: $(which cmake)
+          echo MSYSTEM: ${MSYSTEM}
           mkdir $workingDir
           cmake -B $workingDir -DBUILD_SHARED_LIBS=ON
       - name: Make (Posix)
@@ -128,8 +132,11 @@ jobs:
         working-directory: ${{ env.workingDir }}
       - name: Make (Windows)
         if: runner.os == 'Windows'
-        shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
+        shell: C:\MSys64\msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
         run: |
+          echo GCC: $(which gcc)
+          echo CMAKE: $(which cmake)
+          echo MSYSTEM: ${MSYSTEM}
           make
         working-directory: ${{ env.workingDir }}
       - name: Validate Make

@@ -110,42 +110,44 @@ jobs:
           esac
         env:
           HOMEBREW_NO_ENV_HINTS: true
-      - name: Configure (Posix)
-        if: false && runner.os != 'Windows'
+      - name: Linux x86
+        if: runner.os == 'Linux'
         run: |
-          mkdir $workingDir
-          cmake -B $workingDir -DBUILD_SHARED_LIBS=ON
-          cd $workingDir
+          mkdir $workingDir && cd $workingDir
+          cmake .. -DBUILD_SHARED_LIBS=ON
           cmake --build .
-      - name: MacOS ARM Test
+      - name: MacOS ARM & x86
         if: runner.os == 'macOS'
         run: |
-          mkdir $workingDir
-          cmake -B $workingDir -DBUILD_SHARED_LIBS=ON -DXKCP_TARGETS=generic64 -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-          cd $workingDir
+          mkdir $workingDir && cd $workingDir
+          cmake .. -DBUILD_SHARED_LIBS=ON -DXKCP_TARGETS=generic64 -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           cmake --build .
-      - name: Windows
-        if: false && runner.os == 'Windows'
+          cmake .. -DBUILD_SHARED_LIBS=ON -DXKCP_TARGETS="SSSE3;SSE42;AVX;AVX2;AVX512" -DCMAKE_OSX_ARCHITECTURES="x86_64"
+          cmake --build .
+      - name: Windows x86
+        if: runner.os == 'Windows'
         shell: C:\MSys64\msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
         run: |
           pacman -S --noconfirm mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-ninja
-          echo GCC: $(which gcc)
-          echo CMAKE: $(which cmake)
-          echo MSYSTEM: ${MSYSTEM}
-          mkdir $workingDir
-          cmake -B $workingDir -DBUILD_SHARED_LIBS=ON
-          cd $workingDir
+          mkdir $workingDir && cd $workingDir
+          cmake .. -DBUILD_SHARED_LIBS=ON
           cmake --build .
-      - name: Validate Make
+      - name: Validate & Collect
         run: |
-          ls -laR
-        working-directory: ${{ env.workingDir }}
+          ls -laR $workingDir
+          mkdir artifacts
+          for arch in generic64 AVX AVX2 AVX512 SSSE3 SSE42
+          do
+            echo "Moving ${arch}"
+            mv ${workingDir}/${arch} artifacts
+          done
+          ls -laR artifacts
       - name: Upload Uncompressed Binaries
         uses: actions/upload-artifact@v3
         with:
-          name: XKCP-${{ runner.os }}-x86-NoUPX
+          name: XKCP-${{ runner.os }}
           path: |
-            ${{ env.workingDir }}/**
+            artifacts/**
           if-no-files-found: error
 
   compress:

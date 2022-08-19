@@ -1,7 +1,7 @@
 name: Integration
 on:
   pull_request:
-    types: [ opened, reopened, edited, ready_for_review, synchronize ]
+    types: [ 'opened', 'reopened', 'edited', 'ready_for_review', 'synchronize' ]
   push:
     branches: ['main', 'master' ]
     tags: [ '!v[0-9].*' ]
@@ -100,9 +100,6 @@ jobs:
     steps:
       - name: Checkout XKCP
         uses: actions/checkout@v3
-      - name: Setup MS Build
-        if: runner.os == 'Windows'
-        uses: microsoft/setup-msbuild@v1.1
       - name: Install Dependencies
         run: |
           case "${RUNNER_OS}" in
@@ -113,11 +110,25 @@ jobs:
           esac
         env:
           HOMEBREW_NO_ENV_HINTS: true
-      - name: Configure
+      - name: Configure (Posix)
+        if: runner.os != 'Windows'
         run: |
           mkdir $workingDir
           cmake -B $workingDir -DBUILD_SHARED_LIBS=ON
-      - name: Make
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
+        run: |
+          mkdir $workingDir
+          cmake -B $workingDir -DBUILD_SHARED_LIBS=ON
+      - name: Make (Posix)
+        if: runner.os != 'Windows'
+        run: |
+          make
+        working-directory: ${{ env.workingDir }}
+      - name: Make (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
         run: |
           make
         working-directory: ${{ env.workingDir }}

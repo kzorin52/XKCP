@@ -1,10 +1,9 @@
 name: Integration
 on:
   pull_request:
-    branches: [ '**', '**/*', '!gh-pages' ]
-    types: [ opened, reopened, ready_for_review, synchronize ]
+    types: [ opened, reopened, edited, ready_for_review, synchronize ]
   push:
-    branches: [ 'main', 'master', 'feature/cmake' ]
+    branches: ['main', 'master' ]
     tags: [ '!v[0-9].*' ]
   workflow_call:
 

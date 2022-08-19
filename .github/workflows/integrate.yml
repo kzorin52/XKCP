@@ -5,7 +5,6 @@ on:
   push:
     branches: ['main', 'master' ]
     tags: [ '!v[0-9].*' ]
-  workflow_call:
 
 defaults:
   run:
@@ -85,6 +84,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     needs: skip_check
+    if: needs.skip_check.outputs.should_skip != 'true'
     strategy:
       matrix:
           include:
@@ -97,6 +97,9 @@ jobs:
     defaults:
       run:
         shell: bash
+    outputs:
+      prefix: ${{ steps.os_library.outputs.prefix }}
+      suffix: ${{ steps.os_library.outputs.suffix }}
     steps:
       - name: Checkout XKCP
         uses: actions/checkout@v3
@@ -110,13 +113,13 @@ jobs:
           esac
         env:
           HOMEBREW_NO_ENV_HINTS: true
-      - name: Linux x86
+      - name: Linux (x86-64)
         if: runner.os == 'Linux'
         run: |
           mkdir $workingDir && cd $workingDir
           cmake .. -DBUILD_SHARED_LIBS=ON
           cmake --build .
-      - name: MacOS ARM & x86
+      - name: MacOS (ARM64 & x86-64)
         if: runner.os == 'macOS'
         run: |
           mkdir $workingDir && cd $workingDir
@@ -124,7 +127,7 @@ jobs:
           cmake --build .
           cmake .. -DBUILD_SHARED_LIBS=ON -DXKCP_TARGETS="SSSE3;SSE42;AVX;AVX2;AVX512" -DCMAKE_OSX_ARCHITECTURES="x86_64"
           cmake --build .
-      - name: Windows x86
+      - name: Windows (x86-64)
         if: runner.os == 'Windows'
         shell: C:\MSys64\msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
         run: |
@@ -132,16 +135,40 @@ jobs:
           mkdir $workingDir && cd $workingDir
           cmake .. -DBUILD_SHARED_LIBS=ON
           cmake --build .
-      - name: Validate & Collect
+      - name: Determine Filename
+        id: os_library
         run: |
-          ls -laR $workingDir
+          case "${RUNNER_OS}" in
+              Linux)    echo "::set-output name=prefix::lib" && echo "::set-output name=suffix::so" ;;
+              macOS)    echo "::set-output name=prefix::lib" && echo "::set-output name=suffix::dylib" ;;
+              Windows)  echo "::set-output name=prefix::" && echo "::set-output name=suffix::DLL" ;;
+              *)        echo "Do not recognise ${RUNNER_OS}." && exit 1 ;;
+          esac
+      - name: Collect & Validate
+        run: |
           mkdir artifacts
           for arch in generic64 AVX AVX2 AVX512 SSSE3 SSE42
           do
             echo "Moving ${arch}"
-            mv ${workingDir}/${arch} artifacts
+            if [[ "${RUNNER_OS}" == "Windows" ]] ; then
+              # Windows incorrectly builld with the lib prefix so we remove it here
+              mv ${workingDir}/${arch}/libXKCP.${suffix} artifacts/${prefix}XKCP-${arch}.${suffix}
+            else
+              mv ${workingDir}/${arch}/${prefix}XKCP.${suffix} artifacts/${prefix}XKCP-${arch}.${suffix}
+            fi
           done
           ls -laR artifacts
+        env:
+          prefix: ${{ steps.os_library.outputs.prefix }}
+          suffix: ${{ steps.os_library.outputs.suffix }}
+      - name: Upload Headers
+        uses: actions/upload-artifact@v3
+        if: runner.os == 'Linux'
+        with:
+          name: XKCP-Headers
+          path: |
+            ${{ env.workingDir }}/include/XKCP/**
+          if-no-files-found: error
       - name: Upload Uncompressed Binaries
         uses: actions/upload-artifact@v3
         with:
@@ -156,11 +183,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-        - os: ubuntu-22.04
-          filename: libXKCP.so
-        - os: windows-2022
-          filename: XKCP.DLL
+        os: [ ubuntu-22.04, windows-2022 ]
         arch: [ generic64, AVX, AVX2, AVX512, SSSE3, SSE42 ]
       fail-fast: false
     env: 
@@ -171,27 +194,48 @@ jobs:
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v3
+        with:
+          name: XKCP-${{ runner.os }}
+      - name: List Files
+        run: |
+          ls -laR
+      - name: Determine Filename
+        id: os_library
+        run: |
+          case "${RUNNER_OS}" in
+              Linux)    echo "::set-output name=filename::libXKCP-${arch}.so" ;;
+              macOS)    echo "::set-output name=filename::libXKCP-${arch}.dylib" ;;
+              Windows)  echo "::set-output name=filename::XKCP-${arch}.DLL" ;;
+              *)        echo "Do not recognise ${RUNNER_OS}." && exit 1 ;;
+          esac
+        env:
+          arch: ${{ matrix.arch }}
+      - name: Set Executable Flag (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x ${filename}
+        env:
+          filename: ${{ steps.os_library.outputs.filename }}
       - name: Compress Binaries
         uses: svenstaro/upx-action@v2
         with:
-          file: XKCP-${{ runner.os }}-x86-NoUPX/${{ matrix.arch }}/${{ matrix.filename }}
+          file: ${{ steps.os_library.outputs.filename }}
           args: --best
           strip: false
       - name: Validate compression
         run: |
           ls -la
-        working-directory: ${{ env.workingDir }}
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: XKCP-${{ runner.os }}-x86-${{ matrix.arch }}-UPX
+          name: XKCP-${{ runner.os }}-${{ matrix.arch }}-UPX
           path: |
-            ${{ env.workingDir }}/${{ matrix.arch }}/${{ matrix.filename }}
+            ${{ steps.os_library.outputs.filename }}
           if-no-files-found: error
   
   package:
     name: Package libraries
-    needs: [ compress ]
+    needs: [ build, compress ]
     runs-on: ubuntu-latest
     env: 
       workingDir: build
@@ -204,18 +248,29 @@ jobs:
       - name: Collect
         run: |
           mkdir collection
-          for platform in Linux macOS Windows
-          do
-            mkdir collection/${platform}
-            dir=collection/${platform}/x86
+          # Compressed platforms
+          for platform in Linux Windows ; do
+            dir=collection/${platform}
             mkdir ${dir}
-            for arch in generic64 AVX AVX2 AVX512 SSSE3 SSE42
-            do
+            for arch in generic64 AVX AVX2 AVX512 SSSE3 SSE42 ; do
               echo "Copying ${platform}/${arch}"
-              mkdir ${dir}/${arch}
-              cp XKCP-${platform}-x86-${arch}-UPX/* ${dir}/${arch}/
+              mv XKCP-${platform}-${arch}-UPX/* ${dir}/
             done
           done
+          # Uncompressed platforms
+          mkdir collection/macOS
+          mv XKCP-macOS/* collection/macOS/
+          # Set generic64 as default library on each platform
+          mv collection/Linux/libXKCP-generic64.so collection/Linux/libXKCP.so
+          mv collection/macOS/libXKCP-generic64.dylib collection/macOS/libXKCP.dylib
+          mv collection/Windows/XKCP-generic64.DLL collection/Windows/XKCP.DLL
+          # Collect headers
+          mkdir collection/Headers
+          mv XKCP-Headers/* collection/Headers/
+          ls -lR collection
+        env:
+          prefix: ${{ needs.build.outputs.prefix }}
+          suffix: ${{ needs.build.outputs.suffix }}
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -223,216 +278,3 @@ jobs:
           path: |
             collection/**
           if-no-files-found: error
-
-
-  build-win:
-    runs-on: windows-latest
-    name: Windows
-    needs: skip_check
-    if: false && needs.skip_check.outputs.should_skip != 'true'
-    defaults:
-      run:
-        shell: msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
-    steps:
-    - uses: actions/checkout@v3
-    - name: Setup MS Build
-      uses: microsoft/setup-msbuild@v1.1
-    - name: Add Msys64 to path
-      shell: pwsh
-      run: |
-        echo "c:\msys64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-    - name: Install msys2 dependencies
-      run: |
-        pacman -S --noconfirm ucrt64/mingw-w64-ucrt-x86_64-libxslt ucrt64/mingw-w64-ucrt-x86_64-make ucrt64/mingw-w64-ucrt-x86_64-gcc
-        ln -s /ucrt64/bin/mingw32-make.exe /ucrt64/bin/make.exe
-        echo GCC: $(which gcc)
-        echo MAKE: $(which make)
-        echo MSYSTEM: ${MSYSTEM}
-    - name: Get CPU features
-      id: cpu
-      run: |
-        echo "::set-output name=features::$(echo | gcc -march=native -dM -E - | tr -d '#define' | tr '\r\n' ' ')"
-    - name: Generic64
-      run: |
-        make generic64/libXKCP.so
-        make generic64/UnitTests && bin/generic64/UnitTests -a
-      env:
-        CFLAGS: -O3 -g0 -march=x86-64 -mtune=native
-        ASMFLAGS: -march=x86-64 -mtune=native
-    - name: SSE3
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: SSSE3
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native
-        ASMFLAGS: -march=core2 -mtune=native
-    - name: AVX2
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX2
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=skylake -mtune=native
-        ASMFLAGS: -march=skylake -mtune=native
-    - name: AVX512
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX512
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=skylake-avx512 -mtune=native
-        ASMFLAGS: -march=skylake-avx512 -mtune=native
-
-    - name: Rename artifacts
-      run: |
-          mkdir bin/artifacts
-          mv bin/AVX2/libXKCP.so bin/artifacts/XKCP-AVX2.dll
-          mv bin/AVX512/libXKCP.so bin/artifacts/XKCP-AVX512.dll
-          mv bin/SSSE3/libXKCP.so bin/artifacts/XKCP-SSSE3.dll
-          mv bin/generic64/libXKCP.so bin/artifacts/XKCP.dll
-          mv bin/generic64/libXKCP.so.headers bin/artifacts/include
-          ls bin/artifacts
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: XKCP-win
-        path: |
-          bin/artifacts/*.dll
-          bin/artifacts/libXKCP-win.so.headers
-
-  build-linux:
-    name: Linux
-    runs-on: ubuntu-latest
-    needs: skip_check
-    if: false && needs.skip_check.outputs.should_skip != 'true'
-    steps:
-    - uses: actions/checkout@v3
-    - name: Install dependencies
-      run: |
-        sudo apt-get update && sudo apt-get install xsltproc -y
-    - name: Get CPU features
-      id: cpu
-      run: |
-        echo "::set-output name=features::$(echo | gcc -march=native -dM -E - | tr -d '#define' | tr '\n' ' ')"
-    - name: Generic64
-      run: |
-        make generic64/libXKCP.so
-        make generic64/UnitTests && bin/generic64/UnitTests -a
-      env:
-        CFLAGS: -O3 -g0 -march=x86-64 -mtune=native
-        ASMFLAGS: -march=x86-64 -mtune=native
-    - name: SSSE3
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: SSSE3
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=core2 -msse2 -mssse3 -mtune=native
-        ASMFLAGS: -march=core2 -mtune=native
-    - name: AVX2
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX2
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=skylake -mtune=native
-        ASMFLAGS: -march=skylake -mtune=native
-    - name: AVX512
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX512
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -march=skylake-avx512 -mtune=native
-        ASMFLAGS: -march=skylake-avx512 -mtune=native
-    - name: Rename artifacts
-      run: |
-          mkdir bin/artifacts
-          mv bin/AVX2/libXKCP.so bin/artifacts/libXKCP-AVX2.so
-          mv bin/AVX512/libXKCP.so bin/artifacts/libXKCP-AVX512.so
-          mv bin/SSSE3/libXKCP.so bin/artifacts/libXKCP-SSSE3.so
-          mv bin/generic64/libXKCP.so bin/artifacts/libXKCP.so
-          mv bin/generic64/libXKCP.so.headers bin/artifacts/include
-          ls -lR bin/artifacts
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: XKCP-linux
-        path: |
-          bin/artifacts/*.so
-          bin/artifacts/include
-
-  build-osx:
-    name: MacOS
-    runs-on: macos-latest
-    needs: skip_check
-    if: false && needs.skip_check.outputs.should_skip != 'true'
-    steps:
-    - uses: actions/checkout@v3
-    - name: Install dependencies
-      run: |
-        brew install libxslt
-    - name: Get CPU features
-      id: cpu
-      run: |
-        /usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features
-        echo "::set-output name=features::$(echo | gcc -march=native -dM -E - | tr -d '#define' | tr '\n' ' ')"
-    - name: ARMv8A (M-series)
-      run: |
-        make ARMv8A/libXKCP.dylib
-        if [[ $(sysctl -n machdep.cpu.brand_string) =~ "Apple" ]]; then
-          make ARMv8A/UnitTests && bin/ARMv8A/UnitTests -a
-        else
-          echo "Intel CPU, can't test."
-        fi
-      env:
-        CFLAGS: -target aarch64-apple-darwin -arch arm64 -O3 -g0 -march=armv8-a
-        ASMFLAGS: -march=armv8-a
-    - name: Generic x86_64
-      run: |
-        make generic64/libXKCP.dylib
-        make generic64/UnitTests && bin/generic64/UnitTests -a
-      env:
-        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=x86-64 -mtune=native
-        ASMFLAGS: -march=x86-64 -mtune=native
-    - name: SSE3
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: SSSE3
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=core2 -msse2 -mssse3 -mtune=native
-        ASMFLAGS: -march=core2 -mtune=native
-    - name: AVX2
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX2
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=skylake -mtune=native
-        ASMFLAGS: -march=skylake -mtune=native
-    - name: AVX512
-      run: |
-        ./buildForFeature.sh $feature
-      env:
-        feature: AVX512
-        thisCPU: ${{ steps.cpu.outputs.features}}
-        CFLAGS: -O3 -g0 -target x86_64-apple-darwin -arch x86_64 -march=skylake-avx512 -mtune=native
-        ASMFLAGS: -march=skylake-avx512 -mtune=native
-    - name: Rename and merge Generic64 and ARMv8A artifacts
-      run: |
-          mkdir bin/artifacts
-          mv bin/AVX2/libXKCP.dylib bin/artifacts/libXKCP-AVX2.dylib
-          mv bin/AVX512/libXKCP.dylib bin/artifacts/libXKCP-AVX512.dylib
-          mv bin/SSSE3/libXKCP.dylib bin/artifacts/libXKCP-SSSE3.dylib
-          lipo bin/generic64/libXKCP.dylib bin/ARMv8A/libXKCP.dylib -create -output bin/artifacts/libXKCP.dylib
-          mv bin/generic64/libXKCP.dylib.headers bin/artifacts/include
-          ls bin/artifacts
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: XKCP-osx
-        path: |
-          bin/artifacts/*.dylib
-          bin/artifacts/libXKCP-osx.dylib.headers

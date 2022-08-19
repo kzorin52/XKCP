@@ -14,15 +14,16 @@ jobs:
     needs: integration
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts from Integration
+      - name: Download all XKCP artifacts
         uses: actions/download-artifact@v3
+        with:
+          name: XKCP
       - name: Repackage as release artifacts
         run: |
-          mkdir artifacts/
-          tar czf artifacts/XKCP-linux.tar.gz -C XKCP-linux/ $(find XKCP-linux -type f -name "*.so" -exec basename {} \;)
-          tar czf artifacts/XKCP-osx.tar.gz -C XKCP-osx/ $(find XKCP-osx -type f -name "*.dylib" -exec basename {} \;)
-          tar czf artifacts/XKCP-win.tar.gz -C XKCP-win/ $(find XKCP-win -type f -name "*.dll" -exec basename {} \;)
-          tar czf artifacts/XKCP-headers.tar.gz -C XKCP-linux/ include/
+          tar czf artifacts/XKCP-linux.tar.gz -C Linux/*
+          tar czf artifacts/XKCP-osx.tar.gz -C macOS/*
+          tar czf artifacts/XKCP-win.tar.gz -C Windows/*
+          tar czf artifacts/XKCP-headers.tar.gz -C Headers/*
       - name: Create release on GitHub
         uses: softprops/action-gh-release@v0.1.14
         with:

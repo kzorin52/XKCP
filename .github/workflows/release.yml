@@ -8,7 +8,7 @@ jobs:
   integration:
     name: Integration
     uses: ./.github/workflows/integrate.yml
-  
+
   create-release:
     name: Create Release
     needs: integration
@@ -18,12 +18,16 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: XKCP
+      - name: List Files
+        run: |
+          ls -laR
       - name: Repackage as release artifacts
         run: |
-          tar czf artifacts/XKCP-linux.tar.gz -C Linux/*
-          tar czf artifacts/XKCP-osx.tar.gz -C macOS/*
-          tar czf artifacts/XKCP-win.tar.gz -C Windows/*
-          tar czf artifacts/XKCP-headers.tar.gz -C Headers/*
+          mkdir artifacts
+          tar czf artifacts/XKCP-linux.tar.gz -C Linux .
+          tar czf artifacts/XKCP-osx.tar.gz -C macOS .
+          tar czf artifacts/XKCP-win.tar.gz -C Windows .
+          tar czf artifacts/XKCP-headers.tar.gz -C Headers .
       - name: Create release on GitHub
         uses: softprops/action-gh-release@v0.1.14
         with:

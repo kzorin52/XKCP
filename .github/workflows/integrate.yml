@@ -1,16 +1,16 @@
 name: Integration
 on:
-  pull_request:
-    branches:
-    - '**'
-    - '!gh-pages'
+    pull_request:
+        branches: [ '**', '!gh-pages' ]
+        types: [ opened, reopened, ready_for_review, synchronize ]
+    push:
+        branches: [ 'main', 'master' ]
+        tags: [ '!v[0-9].*' ]
+    workflow_call:
 
-  push:
-    branches:
-      - master
-      - main
-
-  workflow_call:
+defaults:
+    run:
+        shell: bash
 
 jobs:
   skip_check:
@@ -56,6 +56,8 @@ jobs:
         with:
             skip_after_successful_duplicate: 'true'
             paths_ignore: '["**/README.md", ".idea/**", ".editorconfig", ".git*", "docs/**", ".github/**", "**/Doxyfile.in"]'
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            concurrent_skipping: never
     -   name: Collate Checks
         id: collate_checks
         if: |
@@ -128,7 +130,7 @@ jobs:
         with:
           name: XKCP-${{ runner.os }}-x86-NoUPX
           path: |
-            $workingDir/**
+            ${{ env.workingDir }}/**
           if-no-files-found: error
 
   compress:

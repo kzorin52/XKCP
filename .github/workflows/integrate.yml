@@ -111,12 +111,21 @@ jobs:
         env:
           HOMEBREW_NO_ENV_HINTS: true
       - name: Configure (Posix)
-        if: runner.os != 'Windows'
+        if: false && runner.os != 'Windows'
         run: |
           mkdir $workingDir
           cmake -B $workingDir -DBUILD_SHARED_LIBS=ON
-      - name: Configure (Windows)
-        if: runner.os == 'Windows'
+          cd $workingDir
+          cmake --build .
+      - name: MacOS ARM Test
+        if: runner.os == 'macOS'
+        run: |
+          mkdir $workingDir
+          cmake -B $workingDir -DBUILD_SHARED_LIBS=ON -DXKCP_TARGETS=generic64 -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          cd $workingDir
+          cmake --build .
+      - name: Windows
+        if: false && runner.os == 'Windows'
         shell: C:\MSys64\msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
         run: |
           pacman -S --noconfirm mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-ninja
@@ -125,23 +134,11 @@ jobs:
           echo MSYSTEM: ${MSYSTEM}
           mkdir $workingDir
           cmake -B $workingDir -DBUILD_SHARED_LIBS=ON
-      - name: Make (Posix)
-        if: runner.os != 'Windows'
-        run: |
-          make
-        working-directory: ${{ env.workingDir }}
-      - name: Make (Windows)
-        if: runner.os == 'Windows'
-        shell: C:\MSys64\msys2_shell.cmd -defterm -no-start -here -ucrt64 {0}
-        run: |
-          echo GCC: $(which gcc)
-          echo CMAKE: $(which cmake)
-          echo MSYSTEM: ${MSYSTEM}
-          make
-        working-directory: ${{ env.workingDir }}
+          cd $workingDir
+          cmake --build .
       - name: Validate Make
         run: |
-          ls -la
+          ls -laR
         working-directory: ${{ env.workingDir }}
       - name: Upload Uncompressed Binaries
         uses: actions/upload-artifact@v3

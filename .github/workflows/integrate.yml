@@ -184,7 +184,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-22.04, windows-2022 ]
+        os: [ windows-2022 ]
         arch: [ generic64, AVX, AVX2, AVX512, SSSE3, SSE42 ]
       fail-fast: false
     env: 

@@ -98,19 +98,16 @@ jobs:
     defaults:
       run:
         shell: bash
-    outputs:
-      prefix: ${{ steps.os_library.outputs.prefix }}
-      suffix: ${{ steps.os_library.outputs.suffix }}
     steps:
       - name: Checkout XKCP
         uses: actions/checkout@v3
       - name: Install Dependencies
         run: |
           case "${RUNNER_OS}" in
-              Linux)    echo "No requirement for Linux" ;;
-              macOS)    echo "No requirement for MacOS" ;;
-              Windows)  echo "No requirement for Windows" ;;
-              *)        echo "Do not recognise ${RUNNER_OS}." && exit 1 ;;
+            Linux)    echo "No requirement for Linux" ;;
+            macOS)    echo "No requirement for MacOS" ;;
+            Windows)  echo "No requirement for Windows" ;;
+            *)        echo "Do not recognise ${RUNNER_OS}." && exit 1 ;;
           esac
         env:
           HOMEBREW_NO_ENV_HINTS: true
@@ -136,32 +133,20 @@ jobs:
           mkdir $workingDir && cd $workingDir
           cmake .. -DBUILD_SHARED_LIBS=ON
           cmake --build .
-      - name: Determine Filename
-        id: os_library
-        run: |
-          case "${RUNNER_OS}" in
-              Linux)    echo "::set-output name=prefix::lib" && echo "::set-output name=suffix::so" ;;
-              macOS)    echo "::set-output name=prefix::lib" && echo "::set-output name=suffix::dylib" ;;
-              Windows)  echo "::set-output name=prefix::" && echo "::set-output name=suffix::DLL" ;;
-              *)        echo "Do not recognise ${RUNNER_OS}." && exit 1 ;;
-          esac
       - name: Collect & Validate
         run: |
           mkdir artifacts
           for arch in generic64 AVX AVX2 AVX512 SSSE3 SSE42
           do
             echo "Moving ${arch}"
-            if [[ "${RUNNER_OS}" == "Windows" ]] ; then
-              # Windows incorrectly builld with the lib prefix so we remove it here
-              mv ${workingDir}/${arch}/libXKCP.${suffix} artifacts/${prefix}XKCP-${arch}.${suffix}
-            else
-              mv ${workingDir}/${arch}/${prefix}XKCP.${suffix} artifacts/${prefix}XKCP-${arch}.${suffix}
-            fi
+            case "${RUNNER_OS}" in
+              Linux)    mv ${workingDir}/${arch}/libXKCP.so artifacts/libXKCP-${arch}.so ;;
+              macOS)    mv ${workingDir}/${arch}/libXKCP.dylib artifacts/libXKCP-${arch}.dylib ;;
+              Windows)  mv ${workingDir}/${arch}/libXKCP.DLL artifacts/XKCP-${arch}.DLL ;; # Windows incorrectly builds with the lib prefix
+              *)        echo "Do not recognise ${RUNNER_OS}." && exit 1 ;;
+            esac
           done
           ls -laR artifacts
-        env:
-          prefix: ${{ steps.os_library.outputs.prefix }}
-          suffix: ${{ steps.os_library.outputs.suffix }}
       - name: Upload Headers
         uses: actions/upload-artifact@v3
         if: runner.os == 'Linux'
@@ -204,10 +189,10 @@ jobs:
         id: os_library
         run: |
           case "${RUNNER_OS}" in
-              Linux)    echo "::set-output name=filename::libXKCP-${arch}.so" ;;
-              macOS)    echo "::set-output name=filename::libXKCP-${arch}.dylib" ;;
-              Windows)  echo "::set-output name=filename::XKCP-${arch}.DLL" ;;
-              *)        echo "Do not recognise ${RUNNER_OS}." && exit 1 ;;
+            Linux)    echo "::set-output name=filename::libXKCP-${arch}.so" ;;
+            macOS)    echo "::set-output name=filename::libXKCP-${arch}.dylib" ;;
+            Windows)  echo "::set-output name=filename::XKCP-${arch}.DLL" ;;
+            *)        echo "Do not recognise ${RUNNER_OS}." && exit 1 ;;
           esac
         env:
           arch: ${{ matrix.arch }}
@@ -240,6 +225,7 @@ jobs:
     runs-on: ubuntu-latest
     env: 
       workingDir: build
+      collectDir: collection
     defaults:
       run:
         shell: bash
@@ -248,34 +234,45 @@ jobs:
         uses: actions/download-artifact@v3
       - name: Collect
         run: |
-          mkdir collection
-          # Compressed platforms
-          for platform in Linux Windows ; do
-            dir=collection/${platform}
-            mkdir ${dir}
-            for arch in generic64 AVX AVX2 AVX512 SSSE3 SSE42 ; do
-              echo "Copying ${platform}/${arch}"
-              mv XKCP-${platform}-${arch}-UPX/* ${dir}/
-            done
+          mkdir ${collectDir}
+          ls -lR
+          #
+          # Windows compressed files
+          platform=Windows
+          dir=${collectDir}/${platform}
+          mkdir ${dir}
+          echo "Created ${dir}"
+          for arch in generic64 AVX AVX2 AVX512 SSSE3 SSE42 ; do
+            file="XKCP-${platform}-${arch}-UPX/XKCP-${arch}.DLL"
+            if [[ -f ${file} ]]; then
+              echo "Copying ${file}"
+              mv ${file} ${dir}/
+            else
+              echo "Skipping compression for ${arch}, did not find ${file}"
+              mv XKCP-${platform}/XKCP-${arch}.DLL ${dir}/
+            fi
           done
+          #
           # Uncompressed platforms
-          mkdir collection/macOS
-          mv XKCP-macOS/* collection/macOS/
-          # Set generic64 as default library on each platform
-          mv collection/Linux/libXKCP-generic64.so collection/Linux/libXKCP.so
-          mv collection/macOS/libXKCP-generic64.dylib collection/macOS/libXKCP.dylib
-          mv collection/Windows/XKCP-generic64.DLL collection/Windows/XKCP.DLL
+          for platform in Linux macOS ; do
+            dir=${collectDir}/${platform}
+            mkdir ${dir}
+            mv XKCP-${platform}/* ${dir}/
+          done
+          #
+          # Set generic64 as default library on all platforms
+          mv ${collectDir}/Linux/libXKCP-generic64.so ${collectDir}/Linux/libXKCP.so
+          mv ${collectDir}/macOS/libXKCP-generic64.dylib ${collectDir}/macOS/libXKCP.dylib
+          mv ${collectDir}/Windows/XKCP-generic64.DLL ${collectDir}/Windows/XKCP.DLL
+          #
           # Collect headers
-          mkdir collection/Headers
-          mv XKCP-Headers/* collection/Headers/
-          ls -lR collection
-        env:
-          prefix: ${{ needs.build.outputs.prefix }}
-          suffix: ${{ needs.build.outputs.suffix }}
+          mkdir ${collectDir}/Headers
+          mv XKCP-Headers/* ${collectDir}/Headers/
+          ls -lR ${collectDir}
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: XKCP
           path: |
-            collection/**
+            ${{ env.collectDir }}/**
           if-no-files-found: error
